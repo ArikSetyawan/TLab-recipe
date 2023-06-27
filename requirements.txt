@@ -12,4 +12,5 @@ peewee==3.16.2
 pyrsistent==0.19.3
 python-dotenv==1.0.0
 pytz==2023.3
+pydantic==1.10.9
 Werkzeug==2.3.6
