@@ -213,6 +213,8 @@ class ResourceRecipe(Resource):
         parser.add_argument('id_kategori', type=int, location='args')
         parser.add_argument('id_bahan', type=int, location='args')
         args = parser.parse_args()
+
+
         # if id_recipe in arguments, it will try to return Recipe with given id
         if args['id_recipe'] is not None:
             # Get recipe with this id_recipe
@@ -223,17 +225,29 @@ class ResourceRecipe(Resource):
             recipe = model_to_dict(recipe.get(), backrefs=True)
             return ResponseSchema.ResponseJson(success=True, message='Recipe Found', data=recipe),200
         
+        # if id_kategori and id_bahan in arguments, it will try to return Recipe with given id_kategori and id_bahan
         if args['id_kategori'] is not None and args['id_bahan'] is not None:
             # Get recipe with given id_kategori and id_bahan
             recipe = Recipe.select().join(RecipeBahan).join(Bahan).where(Recipe.id_kategori == args['id_kategori'], RecipeBahan.id_bahan == args['id_bahan'])
-            # Check if recipe is exists. if recipe exists. it will return single record of recipe with given id
-            if not recipe.exists():
-                return ResponseSchema.ResponseJson(success=False, message='Recipe Not Found', data=None),404
-            recipe = recipe.dicts().get()
+            recipe = [model_to_dict(r, backrefs=True) for r in recipe]
             return ResponseSchema.ResponseJson(success=True, message='Recipe Found', data=recipe),200
+        
+        # if id_kategori in arguments, it will try to return Recipe with given id_kategori
+        if args['id_kategori'] is not None:
+            recipe = Recipe.select().where(Recipe.id_kategori == args['id_kategori'])
+            # Check if recipe is exists. if recipe exists. it will return single record of recipe with given id
+            recipe = [model_to_dict(r, backrefs=True) for r in recipe]
+            return ResponseSchema.ResponseJson(success=True, message='Recipe Found', data=recipe),200
+        
+        # if id_bahan in arguments, it will try to return Recipe with given id_bahan
+        if args['id_bahan'] is not None:
+            recipe = Recipe.select().join(RecipeBahan).join(Bahan).where(RecipeBahan.id_bahan == args['id_bahan'])
+            # Check if recipe is exists. if recipe exists. it will return single record of recipe with given id
+            recipes = [model_to_dict(r, backrefs=True) for r in recipe]
+            return ResponseSchema.ResponseJson(success=True, message='Recipe Found', data=recipes),200
 
         # Get all recipe
-        recipe = list(Recipe.select().dicts())
+        recipe = [model_to_dict(r, backrefs=True) for r in Recipe.select().join(RecipeBahan).join(Bahan)]
         return ResponseSchema.ResponseJson(success=True, message='Recipe Found', data=recipe),200
     
     def post(self):
