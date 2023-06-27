@@ -1,7 +1,13 @@
-from flask import Flask, jsonify
+from flask import Flask, request
 from flask_restx import Api, Resource, reqparse
 from peewee import *
 from playhouse.shortcuts import model_to_dict
+from pydantic import ValidationError
+
+# Import Schema
+
+from schemas.recipe_schema import RecipeSchema, Ingredient
+
 import dotenv, os
 
 
@@ -26,12 +32,12 @@ class Recipe(BaseModel):
     id = AutoField()
     name = CharField()
     description = TextField()
-    id_kategori = ForeignKeyField(Kategori, backref='recipes')
+    kategori = ForeignKeyField(Kategori, backref='recipes', column_name = 'id_kategori')
 
 class RecipeBahan(BaseModel):
     id = AutoField()
-    id_recipe = ForeignKeyField(Recipe, backref='recipe_bahan')
-    id_bahan = ForeignKeyField(Bahan, backref='recipe_bahan')
+    recipe = ForeignKeyField(Recipe, backref='recipe_bahan', column_name = 'id_recipe')
+    bahan = ForeignKeyField(Bahan, backref='recipe_bahan', column_name = 'id_bahan')
     quantity = IntegerField(null=True)
     satuan = CharField()
 
@@ -198,9 +204,69 @@ class ResourceKategori(Resource):
             return ResponseSchema.ResponseJson(success=True, message='Kategori Deleted', data=None),200
         except Exception as e:
             return ResponseSchema.ResponseJson(success=False, message='Kategori Not Deleted', data=None, error={"message":str(e)}),400
+        
+class ResourceRecipe(Resource):
+    def get(self):
+        # define the arguments to accept
+        parser = reqparse.RequestParser()
+        parser.add_argument('id_recipe', type=int, location='args')
+        parser.add_argument('id_kategori', type=int, location='args')
+        parser.add_argument('id_bahan', type=int, location='args')
+        args = parser.parse_args()
+        # if id_recipe in arguments, it will try to return Recipe with given id
+        if args['id_recipe'] is not None:
+            # Get recipe with this id_recipe
+            recipe = Recipe.select().join(RecipeBahan).join(Bahan).where(Recipe.id == args['id_recipe'])
+            # Check if recipe is exists. if recipe exists. it will return single record of recipe with given id
+            if not recipe.exists():
+                return ResponseSchema.ResponseJson(success=False, message='Recipe Not Found', data=None),404
+            recipe = model_to_dict(recipe.get(), backrefs=True)
+            return ResponseSchema.ResponseJson(success=True, message='Recipe Found', data=recipe),200
+        
+        if args['id_kategori'] is not None and args['id_bahan'] is not None:
+            # Get recipe with given id_kategori and id_bahan
+            recipe = Recipe.select().join(RecipeBahan).join(Bahan).where(Recipe.id_kategori == args['id_kategori'], RecipeBahan.id_bahan == args['id_bahan'])
+            # Check if recipe is exists. if recipe exists. it will return single record of recipe with given id
+            if not recipe.exists():
+                return ResponseSchema.ResponseJson(success=False, message='Recipe Not Found', data=None),404
+            recipe = recipe.dicts().get()
+            return ResponseSchema.ResponseJson(success=True, message='Recipe Found', data=recipe),200
+
+        # Get all recipe
+        recipe = list(Recipe.select().dicts())
+        return ResponseSchema.ResponseJson(success=True, message='Recipe Found', data=recipe),200
+    
+    def post(self):
+        try:
+            # parse args to Recipe Schema
+            recipe = RecipeSchema(**request.json)
+        except ValidationError as e:
+            return ResponseSchema.ResponseJson(success=False, message='Recipe Not Created', data=None, error=e.errors()),400
+        
+        # Check if id_kategori exists
+        kategori = Kategori.select().where(Kategori.id == recipe.id_kategori)
+        if not kategori.exists():
+            return ResponseSchema.ResponseJson(success=False, message='Kategori Not Found', data=None),404
+        
+        # loop recipe ingredients and check if bahan exists
+        for bahan in recipe.ingredients:
+            bahan = Bahan.select().where(Bahan.id == bahan.id_bahan)
+            if not bahan.exists():
+                return ResponseSchema.ResponseJson(success=False, message='Bahan Not Found', data=None),404
+        
+        # Create new recipe
+        newRecipe = Recipe.create(name=recipe.name, description=recipe.description, kategori=recipe.id_kategori)
+        for bahan in recipe.ingredients:
+            RecipeBahan.create(recipe=newRecipe.id, bahan=bahan.id_bahan, quantity=bahan.quantity, satuan=bahan.satuan)
+
+
+        # Getting the newly created recipe
+        recipe = model_to_dict(newRecipe, backrefs=True)
+        return ResponseSchema.ResponseJson(success=True, message='Recipe Created', data=recipe),201
 
 api.add_resource(ResourceBahan, '/api/bahan')
 api.add_resource(ResourceKategori, '/api/kategori')
+api.add_resource(ResourceRecipe, '/api/recipe')
 
 if __name__ == '__main__':
     create_tables()
