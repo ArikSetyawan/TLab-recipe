@@ -12,3 +12,13 @@ class RecipeSchema(BaseModel):
     description: str
     id_kategori: int
     ingredients: conlist(Ingredient, min_items=1)
+
+class RecipeUpdateSchema(BaseModel):
+    id_recipe: int
+    name: str
+    description: str
+    id_kategori: int
+    ingredients: Optional[conlist(Ingredient, min_items=1)] = None
+
+class RecipeDeleteSchema(BaseModel):
+    id_recipe: int

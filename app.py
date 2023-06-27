@@ -6,7 +6,7 @@ from pydantic import ValidationError
 
 # Import Schema
 
-from schemas.recipe_schema import RecipeSchema, Ingredient
+from schemas.recipe_schema import RecipeSchema, RecipeUpdateSchema, RecipeDeleteSchema
 
 import dotenv, os
 
@@ -263,6 +263,66 @@ class ResourceRecipe(Resource):
         # Getting the newly created recipe
         recipe = model_to_dict(newRecipe, backrefs=True)
         return ResponseSchema.ResponseJson(success=True, message='Recipe Created', data=recipe),201
+    
+    def put(self):
+        try:
+            recipe = RecipeUpdateSchema(**request.json)
+            # return ResponseSchema.ResponseJson(success=True, message='Recipe Updated', data=recipe.dict()),200
+        except ValidationError as e:
+            return ResponseSchema.ResponseJson(success=False, message='Recipe Not Updated', data=None, error=e.errors()),400
+        
+        # try to get recipe with given id_recipe
+        getRecipe = Recipe.select().where(Recipe.id == recipe.id_recipe)
+        if not getRecipe.exists():
+            return ResponseSchema.ResponseJson(success=False, message='Recipe Not Found', data=None),404
+        getRecipe = getRecipe.get()
+
+        # check if id_kategori in recipe is exists
+        getKategori = Kategori.select().where(Kategori.id == recipe.id_kategori)
+        if not getKategori.exists():
+            return ResponseSchema.ResponseJson(success=False, message='Kategori Not Found', data=None),404
+        
+        # Check Ingredients in recipe is Not Null
+        if recipe.ingredients is not None:
+            for bahan in recipe.ingredients:
+                bahan = Bahan.select().where(Bahan.id == bahan.id_bahan)
+                if not bahan.exists():
+                    return ResponseSchema.ResponseJson(success=False, message='Bahan Not Found', data=None),404
+
+        
+        # Update recipe with given id_recipe
+        getRecipe.update(name=recipe.name, description=recipe.description, kategori=recipe.id_kategori).execute()
+
+        if recipe.ingredients is not None:
+            # delete RecipeBahan with given id_recipe
+            RecipeBahan.delete().where(RecipeBahan.recipe == getRecipe.id).execute()
+
+            # loop recipe ingredients and create RecipeBahan
+            for bahan in recipe.ingredients:
+                RecipeBahan.create(recipe=recipe.id_recipe, bahan=bahan.id_bahan, quantity=bahan.quantity, satuan=bahan.satuan)
+
+        # Get updated recipe
+        recipe = model_to_dict(Recipe.get(id=recipe.id_recipe), backrefs=True)
+
+        return ResponseSchema.ResponseJson(success=True, message='Recipe Updated', data=recipe),200
+    
+    def delete(self):
+        try:
+            recipe = RecipeDeleteSchema(**request.json)
+        except ValidationError as e:
+            return ResponseSchema.ResponseJson(success=False, message='Recipe Not Deleted', data=None, error=e.errors()),400
+        
+        # Check recipe with given id_recipe exists
+        getRecipe = Recipe.select().where(Recipe.id == recipe.id_recipe)
+        if not getRecipe.exists():
+            return ResponseSchema.ResponseJson(success=False, message='Recipe Not Found', data=None),404
+        
+        # Delete recipe and recipebahan with given id_recipe
+        Recipe.delete().where(Recipe.id == recipe.id_recipe).execute()
+        RecipeBahan.delete().where(RecipeBahan.recipe == recipe.id_recipe).execute()
+        return ResponseSchema.ResponseJson(success=True, message='Recipe Deleted', data=None),200
+        
+
 
 api.add_resource(ResourceBahan, '/api/bahan')
 api.add_resource(ResourceKategori, '/api/kategori')
