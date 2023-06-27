@@ -7,6 +7,8 @@ from pydantic import ValidationError
 # Import Schema
 
 from schemas.recipe_schema import RecipeSchema, RecipeUpdateSchema, RecipeDeleteSchema
+from schemas.bahan_schema import BahanCreateSchema, BahanUpdateSchema, BahanDeleteSchema
+from schemas.kategori_schema import KategoriCreateSchema, KategoriUpdateSchema, KategoriDeleteSchema
 
 import dotenv, os
 
@@ -81,55 +83,57 @@ class ResourceBahan(Resource):
     
     def post(self):
         # define the required data to accept
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str, required=True, location='json')
-        args = parser.parse_args()
+        try:
+            bahan = BahanCreateSchema(**request.json)
+        except ValidationError as e:
+            return ResponseSchema.ResponseJson(success=False, message='Bahan Not Created', data=None, error={"message":e.errors()}),400
         # Create new bahan
         try:
-            bahan = Bahan.create(name=args['name'])
-            return ResponseSchema.ResponseJson(success=True, message='Bahan Created', data=model_to_dict(bahan)),201
+            newBahan = Bahan.create(name=bahan.name)
+            return ResponseSchema.ResponseJson(success=True, message='Bahan Created', data=model_to_dict(newBahan)),201
         except Exception as e:
             return ResponseSchema.ResponseJson(success=False, message='Bahan Not Created', data=None, error={"message":str(e)}),400
         
     def put(self):
         # define the required data to accept
-        parser = reqparse.RequestParser(bundle_errors=True)
-        parser.add_argument('id_bahan', type=int, required=True, location='json')
-        parser.add_argument('name', type=str, required=True, location='json')
-        args = parser.parse_args()
+        try:
+            bahan = BahanUpdateSchema(**request.json)
+        except ValidationError as e:
+            return ResponseSchema.ResponseJson(success=False, message='Bahan Not Updated', data=None, error={"message":e.errors()}),400
         
         # Check bahan with given id_bahan exists
-        bahan = Bahan.select().where(Bahan.id == args['id_bahan'])
-        if not bahan.exists():
+        getBahan = Bahan.select().where(Bahan.id == bahan.id_bahan)
+        if not getBahan.exists():
             return ResponseSchema.ResponseJson(success=False, message='Bahan Not Found', data=None),404
         
         # Update bahan with given id_bahan
         try:
-            Bahan.update(name=args['name']).where(Bahan.id == args['id_bahan']).execute()
-            bahan = Bahan.get(id = args['id_bahan'])
-            return ResponseSchema.ResponseJson(success=True, message='Bahan Updated', data=model_to_dict(bahan)),200
+            Bahan.update(name=bahan.name).where(Bahan.id == bahan.id_bahan).execute()
+            getBahan = Bahan.get(id = bahan.id_bahan)
+            return ResponseSchema.ResponseJson(success=True, message='Bahan Updated', data=model_to_dict(getBahan)),200
         except Exception as e:
             return ResponseSchema.ResponseJson(success=False, message='Bahan Not Updated', data=None, error={"message":str(e)}),400
         
     def delete(self):
         # define the required data to accept
-        parser = reqparse.RequestParser()
-        parser.add_argument('id_bahan', type=int, required=True, location='json')
-        args = parser.parse_args()
+        try:
+            bahan = BahanDeleteSchema(**request.json)
+        except ValidationError as e:
+            return ResponseSchema.ResponseJson(success=False, message='Bahan Not Deleted', data=None, error={"message":e.errors()}),400
         
         # Check bahan with given id_bahan exists
-        bahan = Bahan.select().where(Bahan.id == args['id_bahan'])
-        if not bahan.exists():
+        getBahan = Bahan.select().where(Bahan.id == bahan.id_bahan)
+        if not getBahan.exists():
             return ResponseSchema.ResponseJson(success=False, message='Bahan Not Found', data=None),404
         
         # Check if bahan is used in recipe
-        recipe_bahan = RecipeBahan.select().where(RecipeBahan.id_bahan == args['id_bahan'])
+        recipe_bahan = RecipeBahan.select().where(RecipeBahan.id_bahan == bahan.id_bahan)
         if recipe_bahan.exists():
             return ResponseSchema.ResponseJson(success=False, message='Bahan Used In Recipe', data=None),400
 
         # Delete bahan with given id_bahan
         try:
-            Bahan.delete().where(Bahan.id == args['id_bahan']).execute()
+            Bahan.delete().where(Bahan.id == bahan.id_bahan).execute()
             return ResponseSchema.ResponseJson(success=True, message='Bahan Deleted', data=None),200
         except Exception as e:
             return ResponseSchema.ResponseJson(success=False, message='Bahan Not Deleted', data=None, error={"message":str(e)}),400
@@ -157,50 +161,58 @@ class ResourceKategori(Resource):
     
     def post(self):
         # define the required data to accept
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str, required=True, location='json')
-        args = parser.parse_args()
+        try:
+            kategori = KategoriCreateSchema(**request.json)
+        except ValidationError as e:
+            return ResponseSchema.ResponseJson(success=False, message='Kategori Not Created', data=None, error=e.errors()),400
+
         # Create new kategori
         try:
-            kategori = Kategori.create(name=args['name'])
-            return ResponseSchema.ResponseJson(success=True, message='Kategori Created', data=model_to_dict(kategori)),201
+            newKategori = Kategori.create(name=kategori.name)
+            return ResponseSchema.ResponseJson(success=True, message='Kategori Created', data=model_to_dict(newKategori)),201
         except Exception as e:
             return ResponseSchema.ResponseJson(success=False, message='Kategori Not Created', data=None, error={"message":str(e)}),400
         
     def put(self):
         # define the required data to accept
-        parser = reqparse.RequestParser(bundle_errors=True)
-        parser.add_argument('id_kategori', type=int, required=True, location='json')
-        parser.add_argument('name', type=str, required=True, location='json')
-        args = parser.parse_args()
+        try:
+            kategori = KategoriUpdateSchema(**request.json)
+        except ValidationError as e:
+            return ResponseSchema.ResponseJson(success=False, message='Kategori Not Updated', data=None, error=e.errors()),400
         
         # Check kategori with given id_kategori exists
-        kategori = Kategori.select().where(Kategori.id == args['id_kategori'])
-        if not kategori.exists():
+        getKategori = Kategori.select().where(Kategori.id == kategori.id_kategori)
+        if not getKategori.exists():
             return ResponseSchema.ResponseJson(success=False, message='Kategori Not Found', data=None),404
         
         # Update kategori with given id_kategori
         try:
-            Kategori.update(name=args['name']).where(Kategori.id == args['id_kategori']).execute()
-            kategori = Kategori.get(id = args['id_kategori'])
-            return ResponseSchema.ResponseJson(success=True, message='Kategori Updated', data=model_to_dict(kategori)),200
+            Kategori.update(name=kategori.name).where(Kategori.id == kategori.id_kategori).execute()
+            getKategori = Kategori.get(id = kategori.id_kategori)
+            return ResponseSchema.ResponseJson(success=True, message='Kategori Updated', data=model_to_dict(getKategori)),200
         except Exception as e:
             return ResponseSchema.ResponseJson(success=False, message='Kategori Not Updated', data=None, error={"message":str(e)}),400
         
     def delete(self):
         # define the required data to accept
-        parser = reqparse.RequestParser()
-        parser.add_argument('id_kategori', type=int, required=True, location='json')
-        args = parser.parse_args()
+        try:
+            kategori = KategoriDeleteSchema(**request.json)
+        except ValidationError as e:
+            return ResponseSchema.ResponseJson(success=False, message='Kategori Not Deleted', data=None, error=e.errors()),400
         
         # Check kategori with given id_kategori exists
-        kategori = Kategori.select().where(Kategori.id == args['id_kategori'])
-        if not kategori.exists():
+        getKategori = Kategori.select().where(Kategori.id == kategori.id_kategori)
+        if not getKategori.exists():
             return ResponseSchema.ResponseJson(success=False, message='Kategori Not Found', data=None),404
+        
+        # Check if kategori is used in recipe
+        recipe_kategori = Recipe.select().where(Recipe.id_kategori == kategori.id_kategori)
+        if recipe_kategori.exists():
+            return ResponseSchema.ResponseJson(success=False, message='Kategori Used In Recipe', data=None),400
         
         # Delete kategori with given id_kategori
         try:
-            Kategori.delete().where(Kategori.id == args['id_kategori']).execute()
+            Kategori.delete().where(Kategori.id == kategori.id_kategori).execute()
             return ResponseSchema.ResponseJson(success=True, message='Kategori Deleted', data=None),200
         except Exception as e:
             return ResponseSchema.ResponseJson(success=False, message='Kategori Not Deleted', data=None, error={"message":str(e)}),400
