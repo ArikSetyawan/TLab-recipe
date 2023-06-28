@@ -20,10 +20,10 @@ dotenv.load_dotenv()
 # database = SqliteDatabase(db)
 
 # MySQL PRODUCTION
-database = MySQLDatabase(os.getenv('DATABASE_NAME'), user=os.getenv('DATABASE_PROD_USER'), password=os.getenv('DATABASE_PROD_PASSWORD'), host=os.getenv('DATABASE_PROD_HOST'), port=int(os.getenv('DATABASE_PROD_PORT')))
+# database = MySQLDatabase(os.getenv('DATABASE_NAME'), user=os.getenv('DATABASE_PROD_USER'), password=os.getenv('DATABASE_PROD_PASSWORD'), host=os.getenv('DATABASE_PROD_HOST'), port=int(os.getenv('DATABASE_PROD_PORT')))
 
 # MySQL DEV
-# database = MySQLDatabase(os.getenv('DATABASE_NAME'), user=os.getenv('DATABASE_PROD_USER'), host=os.getenv('DATABASE_PROD_HOST'), port=int(os.getenv('DATABASE_PROD_PORT')))
+database = MySQLDatabase(os.getenv('DATABASE_NAME'), user=os.getenv('DATABASE_DEV_USER'), host=os.getenv('DATABASE_DEV_HOST'), port=int(os.getenv('DATABASE_DEV_PORT')))
 
 class BaseModel(Model):
     class Meta:
