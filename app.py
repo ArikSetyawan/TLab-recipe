@@ -15,8 +15,15 @@ import dotenv, os
 
 dotenv.load_dotenv()
 
-db = 'mydatabase.db'
-database = SqliteDatabase(db)
+# SQLITE
+# db = 'mydatabase.db'
+# database = SqliteDatabase(db)
+
+# MySQL PRODUCTION
+# database = MySQLDatabase(os.getenv('DATABASE_NAME'), user=os.getenv('DATABASE_PROD_USER'), password=os.getenv('DATABASE_PROD_PASSWORD'), host=os.getenv('DATABASE_PROD_HOST'), port=int(os.getenv('DATABASE_PROD_PORT')))
+
+# MySQL DEV
+database = MySQLDatabase(os.getenv('DATABASE_NAME'), user=os.getenv('DATABASE_DEV_USER'), host=os.getenv('DATABASE_DEV_HOST'), port=int(os.getenv('DATABASE_DEV_PORT')))
 
 class BaseModel(Model):
     class Meta:
@@ -156,7 +163,6 @@ class ResourceKategori(Resource):
         
         # Get all kategori
         kategori = list(Kategori.select().dicts())
-        kategori = list(Kategori.select().dicts())
         return ResponseSchema.ResponseJson(success=True, message='Kategori Found', data=kategori),200
     
     def post(self):
@@ -246,6 +252,10 @@ class ResourceRecipe(Resource):
         
         # if id_kategori in arguments, it will try to return Recipe with given id_kategori
         if args['id_kategori'] is not None:
+            # check if kategori exists
+            kategori = Kategori.select().where(Kategori.id == args['id_kategori'])
+            if not kategori.exists():
+                return ResponseSchema.ResponseJson(success=False, message='Kategori Not Found', data=None),404
             recipe = Recipe.select().where(Recipe.id_kategori == args['id_kategori'])
             # Check if recipe is exists. if recipe exists. it will return single record of recipe with given id
             recipe = [model_to_dict(r, backrefs=True) for r in recipe]
@@ -253,6 +263,11 @@ class ResourceRecipe(Resource):
         
         # if id_bahan in arguments, it will try to return Recipe with given id_bahan
         if args['id_bahan'] is not None:
+            # check if bahan exists
+            bahan = Bahan.select().where(Bahan.id == args['id_bahan'])
+            if not bahan.exists():
+                return ResponseSchema.ResponseJson(success=False, message='Bahan Not Found', data=None),404
+            
             recipe = Recipe.select().join(RecipeBahan).join(Bahan).where(RecipeBahan.id_bahan == args['id_bahan'])
             # Check if recipe is exists. if recipe exists. it will return single record of recipe with given id
             recipes = [model_to_dict(r, backrefs=True) for r in recipe]
@@ -344,8 +359,8 @@ class ResourceRecipe(Resource):
             return ResponseSchema.ResponseJson(success=False, message='Recipe Not Found', data=None),404
         
         # Delete recipe and recipebahan with given id_recipe
-        Recipe.delete().where(Recipe.id == recipe.id_recipe).execute()
         RecipeBahan.delete().where(RecipeBahan.recipe == recipe.id_recipe).execute()
+        Recipe.delete().where(Recipe.id == recipe.id_recipe).execute()
         return ResponseSchema.ResponseJson(success=True, message='Recipe Deleted', data=None),200
         
 
